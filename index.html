@@ -7,20 +7,20 @@
   <style>
     * { box-sizing: border-box; }
     :root{
-      --bg:#07111f;
-      --panel:#0f1f35;
-      --panel2:#162b46;
+      --bg:#17052d;
+      --panel:#28104e;
+      --panel2:#432371;
       --text:#ffffff;
-      --muted:#9fb3c8;
-      --accent:#ffb703;
-      --danger:#ef476f;
-      --ok:#06d6a0;
+      --muted:#e4d7ff;
+      --accent:#ffe14d;
+      --danger:#ff4f87;
+      --ok:#35f0b2;
     }
     body{
       margin:0;
       min-height:100vh;
       font-family:Arial, Helvetica, sans-serif;
-      background:linear-gradient(180deg,#06101d,#0b1830);
+      background:radial-gradient(circle at top,#5b21b6 0%,#27104b 35%,#10051f 100%);
       color:var(--text);
       display:flex;
       justify-content:center;
@@ -181,7 +181,7 @@
   <div class="app">
     <div class="header">
       <h1>PUZZLE DE BLOCOS</h1>
-      <p>SOFIA MOREIRA</p>
+      <p>PROFESSOR MOREIRA</p>
     </div>
 
     <div class="game-wrap">
@@ -220,7 +220,7 @@
     </div>
 
     <div class="hint">
-      Teclado: setas para mover, seta para cima para girar, espaço para queda rápida e P para pausar.
+      Teclado: setas para mover, ↑ ou X para girar, Z para girar ao contrário, espaço para queda rápida e P para pausar.
     </div>
   </div>
 
@@ -242,13 +242,13 @@
   const COLS = 10, ROWS = 20, BLOCK = 30;
   const colors = [
     null,
-    '#00f5d4', // I
-    '#fee440', // O
-    '#9b5de5', // T
-    '#00bbf9', // J
-    '#f15bb5', // L
-    '#00f5a0', // S
-    '#ff595e'  // Z
+    '#19e6ff',
+    '#ffe23f',
+    '#c45cff',
+    '#4388ff',
+    '#ff9d2e',
+    '#42e66c',
+    '#ff4675'
   ];
 
   const pieces = [
@@ -311,30 +311,34 @@
     });
   }
 
-  function rotate(matrix){
-    for(let y=0;y<matrix.length;y++){
-      for(let x=0;x<y;x++){
-        [matrix[x][y],matrix[y][x]]=[matrix[y][x],matrix[x][y]];
+  function rotatedMatrix(matrix, direction = 1){
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const rotated = Array.from({length:cols}, () => Array(rows).fill(0));
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        if(direction>0) rotated[x][rows-1-y]=matrix[y][x];
+        else rotated[cols-1-x][y]=matrix[y][x];
       }
     }
-    matrix.forEach(row=>row.reverse());
+    return rotated;
   }
 
-  function playerRotate(){
+  function playerRotate(direction = 1){
+    if(paused || gameOver) return;
+    const oldMatrix = player.matrix;
     const oldX = player.pos.x;
-    let offset = 1;
-    rotate(player.matrix);
-    while(collide(board,player)){
-      player.pos.x += offset;
-      offset = -(offset + (offset>0?1:-1));
-      if(Math.abs(offset)>player.matrix[0].length){
-        rotate(player.matrix);
-        rotate(player.matrix);
-        rotate(player.matrix);
-        player.pos.x = oldX;
-        return;
-      }
+    const oldY = player.pos.y;
+    player.matrix = rotatedMatrix(player.matrix,direction);
+    const kicks=[[0,0],[1,0],[-1,0],[2,0],[-2,0],[0,-1],[1,-1],[-1,-1],[0,-2]];
+    for(const [dx,dy] of kicks){
+      player.pos.x=oldX+dx;
+      player.pos.y=oldY+dy;
+      if(!collide(board,player)) return;
     }
+    player.matrix=oldMatrix;
+    player.pos.x=oldX;
+    player.pos.y=oldY;
   }
 
   function playerMove(dir){
@@ -396,20 +400,30 @@
     matrix.forEach((row,y)=>{
       row.forEach((value,x)=>{
         if(value!==0){
-          context.fillStyle = colors[value];
-          context.fillRect((x+offset.x)*blockSize,(y+offset.y)*blockSize,blockSize,blockSize);
-          context.strokeStyle = 'rgba(255,255,255,.28)';
-          context.lineWidth = 2;
-          context.strokeRect((x+offset.x)*blockSize+1,(y+offset.y)*blockSize+1,blockSize-2,blockSize-2);
-          context.fillStyle='rgba(255,255,255,.12)';
-          context.fillRect((x+offset.x)*blockSize+3,(y+offset.y)*blockSize+3,blockSize-6,5);
+          const px=(x+offset.x)*blockSize;
+          const py=(y+offset.y)*blockSize;
+          const g=context.createLinearGradient(px,py,px+blockSize,py+blockSize);
+          g.addColorStop(0,'#ffffff');
+          g.addColorStop(.18,colors[value]);
+          g.addColorStop(1,colors[value]);
+          context.save();
+          context.shadowColor=colors[value];
+          context.shadowBlur=Math.max(4,blockSize*.18);
+          context.fillStyle=g;
+          context.fillRect(px+1,py+1,blockSize-2,blockSize-2);
+          context.restore();
+          context.strokeStyle='rgba(255,255,255,.8)';
+          context.lineWidth=1.5;
+          context.strokeRect(px+2,py+2,blockSize-4,blockSize-4);
+          context.fillStyle='rgba(255,255,255,.28)';
+          context.fillRect(px+4,py+4,blockSize-8,Math.max(3,blockSize*.16));
         }
       });
     });
   }
 
   function drawGrid(){
-    ctx.strokeStyle='rgba(255,255,255,.05)';
+    ctx.strokeStyle='rgba(224,190,255,.12)';
     ctx.lineWidth=1;
     for(let x=0;x<=COLS;x++){
       ctx.beginPath(); ctx.moveTo(x*BLOCK,0); ctx.lineTo(x*BLOCK,ROWS*BLOCK); ctx.stroke();
@@ -420,7 +434,7 @@
   }
 
   function draw(){
-    ctx.fillStyle='#020812';
+    ctx.fillStyle='#090015';
     ctx.fillRect(0,0,canvas.width,canvas.height);
     drawGrid();
     drawMatrix(board,{x:0,y:0},ctx,BLOCK);
@@ -428,7 +442,7 @@
   }
 
   function drawNext(){
-    nextCtx.fillStyle='#020812';
+    nextCtx.fillStyle='#090015';
     nextCtx.fillRect(0,0,nextCanvas.width,nextCanvas.height);
     const size=20;
     const w=nextPiece.matrix[0].length*size;
@@ -488,7 +502,8 @@
     if(e.key==='ArrowLeft') playerMove(-1);
     else if(e.key==='ArrowRight') playerMove(1);
     else if(e.key==='ArrowDown') playerDrop();
-    else if(e.key==='ArrowUp') playerRotate();
+    else if(e.key==='ArrowUp' || e.key.toLowerCase()==='x') playerRotate(1);
+    else if(e.key.toLowerCase()==='z') playerRotate(-1);
     else if(e.code==='Space'){ e.preventDefault(); hardDrop(); }
     else if(e.key.toLowerCase()==='p') togglePause();
   });
@@ -498,7 +513,7 @@
     const act=()=>{
       if(action==='left') playerMove(-1);
       if(action==='right') playerMove(1);
-      if(action==='rotate' && !paused && !gameOver) playerRotate();
+      if(action==='rotate' && !paused && !gameOver) playerRotate(1);
       if(action==='down') playerDrop();
       if(action==='drop') hardDrop();
       draw();
